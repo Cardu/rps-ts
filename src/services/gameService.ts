@@ -70,7 +70,7 @@ export const createGameService = (repo: GameRepository): GameService => ({
   lastPlay: () => repo.getLast,
 });
 
-//don't use an intermediate map, but to me it's harder to understand, it's miming Haskell do syntax (or scala's flatMap)
+//don't use an intermediate map, but to me it's harder to understand, it's miming Haskell do syntax (or Scala's flatMap)
 export const createGameServiceBind = (repo: GameRepository): GameService => ({
   play: (userMove: Move): TE.TaskEither<RPSError, Result> => pipe(
       T.Do,

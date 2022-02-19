@@ -1,6 +1,6 @@
 import { IDatabase, errors } from "pg-promise";
 import { IClient } from "pg-promise/typescript/pg-subset";
-import { PlayResponse, Result, RPSError } from "../models";
+import { PlayResponse, RPSError } from "../models";
 import { TaskEither, tryCatch } from "fp-ts/lib/TaskEither";
 import * as sql from "./sql";
 

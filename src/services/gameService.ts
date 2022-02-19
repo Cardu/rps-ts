@@ -1,10 +1,12 @@
-import { Move, Error, Result, PlayResponse } from "../models";
-import { TaskEither, right } from "fp-ts/lib/TaskEither";
+import { Move, RPSError, Result, PlayResponse } from "../models";
 import { GameRepository } from "../repository";
+import { pipe } from "fp-ts/lib/function";
+import * as T from "fp-ts/lib/Task";
+import * as TE from "fp-ts/lib/TaskEither";
 
 export interface GameService {
-  play: (move: Move) => TaskEither<Error, Result>;
-  lastPlay: () => TaskEither<unknown, PlayResponse>;
+  play: (move: Move) => TE.TaskEither<RPSError, Result>;
+  lastPlay: () => TE.TaskEither<unknown, PlayResponse>;
 }
 
 const randomMove = (): Move => {
@@ -19,18 +21,28 @@ const randomMove = (): Move => {
   }
 };
 
-export const createGameService = (repo: GameRepository): GameService => ({
-  play: (move: Move): TaskEither<Error, Result> => {
-    const computerMove = randomMove();
-    if (move === computerMove) return right("Draw");
-    switch (move) {
+const internalPlay = (userMove: Move, computerMove: Move): T.Task<Result>  => {
+  if (userMove === computerMove) return T.of("Draw");
+    switch (userMove) {
       case "Paper":
-        return right(computerMove === "Rock" ? "Win" : "Lose");
+        return T.of(computerMove === "Rock" ? "Win" : "Lose");
       case "Rock":
-        return right(computerMove === "Scissor" ? "Win" : "Lose");
+        return T.of(computerMove === "Scissor" ? "Win" : "Lose");
       case "Scissor":
-        return right(computerMove === "Paper" ? "Win" : "Lose");
+        return T.of(computerMove === "Paper" ? "Win" : "Lose");
     }
-  },
+}
+
+const internalPlayMapped = (userMove: Move, computerMove: Move): T.Task<PlayResponse> => 
+  T.map((result: Result) => ({userMove, computerMove, result}))(internalPlay(userMove, computerMove))
+  //internalPlay(userMove, computerMove).map((result) => ...) most common, but the other one is giving you code suggestion when used inside a pipe
+
+export const createGameService = (repo: GameRepository): GameService => ({ 
+  play: (userMove: Move): TE.TaskEither<RPSError, Result> => pipe(
+      randomMove(),
+      computerMove => internalPlayMapped(userMove, computerMove),      
+      T.chain(repo.insert), // can chain task and taskEither because taskEither is a subtype of task
+      TE.map(r => r.result) // mapping of taskeither applies ONLY if the inner result is right, you can map only the error with .mapLeft or both results with .bimap
+    ),
   lastPlay: () => repo.getLast,
 });
